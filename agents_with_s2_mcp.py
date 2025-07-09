@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--vllm_model_name",
         type=str,
-        default="allenai/general-tool-use-dev",
+        default="Qwen/Qwen3-8B",
         help="Model name to use for the agent.",
     )
     parser.add_argument(
