@@ -19,6 +19,7 @@ resp = client.responses.create(
         }
     ],
     input="List the papers written by Pradeep Dasigi.",
+    #input="What algorithms are implemented in the allenai/open-instruct repository?",
 )
 
 print(resp.output_text)

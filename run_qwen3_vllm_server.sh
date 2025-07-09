@@ -1,0 +1,1 @@
+vllm serve Qwen/Qwen3-8B --enable-auto-tool-choice --tool-call-parser hermes
