@@ -1,1 +1,1 @@
-vllm serve allenai/general-tool-use-dev --revision tulu3-8b-sft-T2-S2__8__07032025223921 --enable-auto-tool-choice --tool-call-parser toolu_pythonic --tool-parser-plugin ./toolu_pythonic_tool_parser.py --chat-template ./toolu_tools_template.jinja
+vllm serve allenai/general-tool-use-dev --revision tulu3-8b-sft-T2-S2__8__07032025223921 --enable-auto-tool-choice --tool-call-parser toolu_pythonic --tool-parser-plugin ./plugins/toolu_pythonic_tool_parser.py --chat-template ./plugins/toolu_tools_template.jinja
