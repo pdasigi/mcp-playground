@@ -1,36 +1,42 @@
 import asyncio
 import argparse
+import logging
 
 from agents import Agent, Runner, trace
 from agents.mcp import MCPServer, MCPServerStdio
 from agents.extensions.models.litellm_model import LitellmModel
 
+logger = logging.getLogger(__name__)
 
-async def run(mcp_server: MCPServer, model_type: str, vllm_model_name: str, port: int):
-    if model_type == "openai":
-        model = None
+
+async def run(mcp_server: MCPServer, model: str, port: int):
+    if model == "openai":
+        _model = None
+        logger.info("Using OpenAI model with MCP server.")
     else:
-        model = LitellmModel(
-            model=f"hosted_vllm/{vllm_model_name}",
+        model_name = "Qwen/Qwen3-8B" if model == "qwen" else "allenai/general-tool-use-dev"
+        logger.info(f"Using VLLM model: {model_name} on port {port}.")
+        _model = LitellmModel(
+            model=f"hosted_vllm/{model_name}",
             base_url=f"http://localhost:{port}/v1",
             api_key="EMPTY",
         )
     agent = Agent(
         name="Assistant",
         instructions="Answer questions about the papers on Semantic Scholar.",
-        model=model,
+        model=_model,
         mcp_servers=[mcp_server],
     )
 
     #message = "Retrieve the list of the papers co-authored by Pradeep Dasigi and summarize the research topics based on the titles."
-    message = "Give me a list of the papers co-authored by Pradeep Dasigi."
+    message = "Tell me about the paper 'Attention is All You Need'"
     print("\n" + "-" * 40)
     print(f"Running: {message}")
     result = await Runner.run(starting_agent=agent, input=message)
     print(result.final_output)
 
 
-async def main(model_type: str, vllm_model_name: str, port: int):
+async def main(model: str, port: int):
 
     async with MCPServerStdio(
         cache_tools_list=True,  # Cache the tools list, for demonstration
@@ -42,22 +48,17 @@ async def main(model_type: str, vllm_model_name: str, port: int):
             ]
         },
     ) as server:
-        with trace(workflow_name="MCP S2 Example"):
-            await run(server, model_type=model_type, vllm_model_name=vllm_model_name, port=port)
+        with trace(workflow_name=f"S2 MCP with {model}"):
+            await run(server, model=model, port=port)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model_type",
+        "--model",
         type=str,
-        default="openai",
-        choices=["openai", "vllm"],
-    )
-    parser.add_argument(
-        "--vllm_model_name",
-        type=str,
-        default="Qwen/Qwen3-8B",
+        default="toolu",
+        choices=["qwen", "toolu", "openai"],
         help="Model name to use for the agent.",
     )
     parser.add_argument(
@@ -68,4 +69,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    asyncio.run(main(model_type=args.model_type, vllm_model_name=args.vllm_model_name, port=args.port))
+    asyncio.run(main(model=args.model, port=args.port))
