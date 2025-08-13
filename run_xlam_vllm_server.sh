@@ -1,0 +1,1 @@
+vllm serve Salesforce/Llama-xLAM-2-8b-fc-r --enable-auto-tool-choice --tool-call-parser xlam --chat-template ./plugins/tool_chat_template_xlam_llama.jinja --port 6394
