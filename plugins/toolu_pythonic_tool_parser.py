@@ -14,8 +14,12 @@ class TooluPythonicToolParser(PythonicToolParser):
             self, model_output: str,
             request: ChatCompletionRequest
     ) -> ExtractedToolCallInformation:
-        model_output = model_output.replace("<function_calls>", "").replace("</function_calls>", "")
-        model_output = model_output.replace("\n", ", ")
+        model_output = (
+            model_output.replace("<function_calls>", "").replace("</function_calls>", "").strip()
+        )
+        model_output = ", ".join(
+            [line.strip() for line in model_output.splitlines() if line.strip()]
+        )
         model_output = f"[{model_output}]"
         extracted_tool_call_info = super().extract_tool_calls(model_output, request)
         return extracted_tool_call_info

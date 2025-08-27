@@ -1,38 +1,69 @@
-
 {% for message in messages %}
-        {% if message['role'] == 'system' %}
-            {% if tools is not none %}
-                {{ '<|system|>\n' + message['content'] + '\n' + '<functions>' }}
-                 {{ tools | tojson(indent=4) }}
-                {{ '</functions>' + '\n' }}
-            {% elif message.get('functions', none) is not none %}
-                {{ '<|system|>\n' + message['content'] + '\n' + '<functions>' + message['functions'] + '</functions>' + '\n' }}
-            {% else %}
-                {{ '<|system|>\n' + message['content']  + '\n' }}
-            {% endif %}
-        {% elif message['role'] == 'user' %}
-            {% if message.get('functions', none) is not none %}
-                {{ '<|user|>\n' + message['content'] + '\n' + '<functions>' + message['functions'] + '</functions>' + '\n' }}
-            {% else %}
-                {{ '<|user|>\n' + message['content'] + '\n' }}
-            {% endif %}
-        {% elif message['role'] == 'assistant' %}
-            {{ '<|assistant|>\n' }}
-            {% if message.get('content', none) is not none %}
-                {{ message['content'] }}
-            {% endif %}
-            {% if message.get('function_calls', none) is not none %}
-                {{ '<function_calls>' + message['function_calls'] + '</function_calls>' }}
-            {% endif %}
-            {% if not loop.last %}
-                {{ eos_token + '\n' }}
-            {% else %}
-                {{ eos_token }}
-            {% endif %}
-        {% elif message['role'] == 'environment' %}
+    {% if message['role'] == 'system' %}
+        {% if tools is not none %}
+            {{ '<|system|>\n' + message['content'] + '\n' }}
+            {{ 'You are a function calling AI model. You are provided with function signatures within <functions></functions> XML tags. You may call one or more functions to assist with the user query. Don\'t make assumptions about what values to plug into functions.' + '\n' }}
+            {{ '<functions>' }}
+            {{ tools | tojson }}
+            {{ '</functions>' + '\n' }}
+        {% elif message.get('functions', none) is not none %}
+            {{ '<|system|>\n' + message['content'] + '\n' + '<functions>' + message['functions'] + '</functions>' + '\n' }}
+        {% else %}
+            {{ '<|system|>\n' + message['content']  + '\n' }}
+        {% endif %}
+    {% elif message['role'] == 'user' %}
+        {% if message.get('functions', none) is not none %}
+            {{ '<|user|>\n' + message['content'] + '\n' + '<functions>' + message['functions'] + '</functions>' + '\n' }}
+        {% else %}
+            {{ '<|user|>\n' + message['content'] + '\n' }}
+        {% endif %}
+    {% elif message['role'] == 'assistant' %}
+        {{ '<|assistant|>\n' }}
+        {% if message.get('content', none) is not none %}
+            {{ message['content'] }}
+        {% endif %}
+        {% if message.get('function_calls', none) is not none %}
+            {{ '<function_calls>' + message['function_calls'] + '</function_calls>' }}
+        {% elif message.get('tool_calls', none) is not none %}
+            {{ '<function_calls>' }}
+                {% set tool_calls = message['tool_calls'] | tojson %}
+                    {% for tool_call in message['tool_calls'] %}
+                        {% if tool_call is mapping and tool_call.get('function', none) is not none %}
+                            {% set ns = namespace(arguments_list=[]) %}
+                            {% for key, value in tool_call['function']['arguments'].items() %}
+                                {% if value is string %}
+                                    {% set ns.arguments_list = ns.arguments_list + [key ~ '="' ~ value ~ '"'] %}
+                                {% elif value is iterable and value is not string and value|length > 0 %}
+                                    {% if value[0] is string %}
+                                        {% set quoted_items = value | map('string') | map('replace', '\\', '') | map('replace', '"', '\"') | map('replace', "'", "\'") | map('replace', '\n', '') | list %}
+                                        {% set quoted_items = quoted_items | map('string') | list %}
+                                        {% set ns.arguments_list = ns.arguments_list + [key ~ '=[' ~ quoted_items | join(', ') ~ ']'] %}
+                                    {% else %}
+                                        {% set ns.arguments_list = ns.arguments_list + [key ~ '=' ~ value | join(', ')] %}
+                                    {% endif %}
+                                {% else %}
+                                    {% set ns.arguments_list = ns.arguments_list + [key ~ '=' ~ value] %}
+                                {% endif %}
+                            {% endfor %}
+                            {% set arguments = ns.arguments_list | join(', ') %}
+                            {{ tool_call['function']['name'] + '(' + arguments + ')' }}
+                        {% else %}
+                            {{ tool_call }}
+                        {% endif %}
+                    {% endfor %}
+            {{ '</function_calls>' }}
+        {% endif %}
+        {% if not loop.last %}
+            {{ eos_token + '\n' }}
+        {% else %}
+            {{ eos_token }}
+        {% endif %}
+    {% elif message['role'] == 'environment' %}
+        {{ '<|environment|>\n' + message['content'] + '\n' }}
+    {% elif message['role'] == 'tool' %}
             {{ '<|environment|>\n' + message['content'] + '\n' }}
-        {% endif %}
-        {% if loop.last and add_generation_prompt %}
-            {{ '<|assistant|>\n' }}
-        {% endif %}
-        {% endfor %}
+    {% endif %}
+    {% if loop.last and add_generation_prompt %}
+        {{ '<|assistant|>\n' }}
+    {% endif %}
+{% endfor %}
